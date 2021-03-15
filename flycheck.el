@@ -7470,13 +7470,16 @@ Uses the GNAT compiler from GCC.  See URL
 
 See URL `https://ansible-lint.readthedocs.io/en/latest/'."
   ;; emacs-ansible provides ansible, not ansible-mode
-  :enabled (lambda () (seq-find (lambda (elt) (equal 'ansible elt))
-                                (mapcar #'car minor-mode-alist)))
+  :enabled (lambda () (bound-and-true-p ansible))
   :command ("ansible-lint" "--nocolor" "-p" source)
   :error-patterns
   ((error "CRITICAL Couldn't parse task at " (file-name) ":" line " " (message))
+   ;; ansible-lint v4 output
    (warning line-start (file-name) ":" line ": [E" (id (+ digit)) "] " (message)
-            line-end))
+            line-end)
+   ;; ansible-lint v5 output
+   (warning line-start (file-name) ":" line (optional ":" column) ": "
+            (id (+ (any "a-z-"))) " " (message) line-end))
   :error-explainer
   (lambda (err)
     (let* ((id (flycheck-error-id err))
@@ -7489,7 +7492,7 @@ See URL `https://ansible-lint.readthedocs.io/en/latest/'."
                           (string-prefix-p id elt)))))
            (next-id (car (seq-filter
                           (lambda (elt)
-                            (string-match-p "^[0-9]\\{3,4\\}: " elt))
+                            (string-match-p "^[0-9a-z-]+: " elt))
                           (nthcdr start lines))))
            (end (if (not next-id)
                     (length lines)
@@ -7497,7 +7500,7 @@ See URL `https://ansible-lint.readthedocs.io/en/latest/'."
                    lines t
                    (lambda (elt _)
                      (string-prefix-p next-id elt))))))
-      (substring (mapconcat 'identity (seq-subseq lines start end) "") 2)))
+      (substring (mapconcat 'identity (seq-subseq lines start end) " ") 2)))
   :modes yaml-mode
   :next-checkers ((t . yaml-jsyaml)
                   (t . yaml-ruby)
